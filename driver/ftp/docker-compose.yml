@@ -1,0 +1,16 @@
+version: '3.7'
+services:
+  ftp:
+    container_name: ftp
+    image: fauria/vsftpd
+    ports:
+      - "6021:21"
+      - "6022:22"
+      - "21100-21110:21100-21110"
+    volumes:
+      - ./testdata/ftp:/home/vsftpd
+    environment:
+      - FTP_USER=admin
+      - FTP_PASS=123456
+      - PASV_ADDRESS=127.0.0.1
+    restart: always

@@ -1,0 +1,13 @@
+version: '3'
+services:
+  s3-mock:
+    image: adobe/s3mock
+    ports:
+      - '19090:9090'
+      - '19191:9191'
+    environment:
+      - initialBuckets=mock
+      - retainFilesOnExit=false
+      - root=/data
+    volumes:
+      - ./testdata/s3root:/data
