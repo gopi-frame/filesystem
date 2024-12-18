@@ -229,11 +229,11 @@ func (fs *SFTPFileSystem) Visibility(path string) (string, error) {
 	return fs.visibilityConvertor.InverseForFile(info.Mode().Perm()), nil
 }
 
-func (fs *SFTPFileSystem) Write(path string, content []byte, config fs2.CreateFileConfig) error {
+func (fs *SFTPFileSystem) Write(path string, content []byte, config map[string]any) error {
 	return fs.WriteStream(path, bytes.NewReader(content), config)
 }
 
-func (fs *SFTPFileSystem) WriteStream(path string, stream io.Reader, config fs2.CreateFileConfig) error {
+func (fs *SFTPFileSystem) WriteStream(path string, stream io.Reader, config map[string]any) error {
 	client, err := fs.clientPool.Get()
 	if err != nil {
 		return filesystem.NewUnableToWriteFile(path, err)
@@ -244,9 +244,19 @@ func (fs *SFTPFileSystem) WriteStream(path string, stream io.Reader, config fs2.
 	var fileMode = fs.visibilityConvertor.DefaultForFile()
 	var writeFlag = os.O_CREATE | os.O_TRUNC | os.O_WRONLY
 	if config != nil {
-		dirMode = fs.visibilityConvertor.ForDir(config.DirVisibility())
-		fileMode = fs.visibilityConvertor.ForFile(config.FileVisibility())
-		writeFlag = config.WriteFlag()
+		cfg, err := filesystem.NewConfig(config)
+		if err != nil {
+			return filesystem.NewUnableToWriteFile(path, err)
+		}
+		if cfg.DirVisibility != nil {
+			dirMode = fs.visibilityConvertor.ForDir(*cfg.DirVisibility)
+		}
+		if cfg.FileVisibility != nil {
+			fileMode = fs.visibilityConvertor.ForFile(*cfg.FileVisibility)
+		}
+		if cfg.FileWriteFlag != nil {
+			writeFlag = *cfg.FileWriteFlag
+		}
 	}
 	if err := client.SFTPClient().MkdirAll(filepath.ToSlash(filepath.Dir(path))); err != nil {
 		return filesystem.NewUnableToCreateDirectory(path, err)
@@ -342,7 +352,7 @@ func (fs *SFTPFileSystem) DeleteDir(path string) error {
 	return nil
 }
 
-func (fs *SFTPFileSystem) CreateDir(path string, config fs2.CreateDirectoryConfig) error {
+func (fs *SFTPFileSystem) CreateDir(path string, config map[string]any) error {
 	client, err := fs.clientPool.Get()
 	if err != nil {
 		return filesystem.NewUnableToCreateDirectory(path, err)
@@ -351,7 +361,13 @@ func (fs *SFTPFileSystem) CreateDir(path string, config fs2.CreateDirectoryConfi
 	path = filepath.ToSlash(filepath.Clean(path))
 	var dirMode = fs.visibilityConvertor.DefaultForDir()
 	if config != nil {
-		dirMode = fs.visibilityConvertor.ForDir(config.DirVisibility())
+		cfg, err := filesystem.NewConfig(config)
+		if err != nil {
+			return filesystem.NewUnableToCreateDirectory(path, err)
+		}
+		if cfg.DirVisibility != nil {
+			dirMode = fs.visibilityConvertor.ForDir(*cfg.DirVisibility)
+		}
 	}
 	if err := client.SFTPClient().MkdirAll(path); err != nil {
 		return filesystem.NewUnableToCreateDirectory(path, err)
@@ -362,7 +378,7 @@ func (fs *SFTPFileSystem) CreateDir(path string, config fs2.CreateDirectoryConfi
 	return nil
 }
 
-func (fs *SFTPFileSystem) Move(src string, dst string, config fs2.CreateDirectoryConfig) error {
+func (fs *SFTPFileSystem) Move(src string, dst string, config map[string]any) error {
 	client, err := fs.clientPool.Get()
 	if err != nil {
 		return filesystem.NewUnableToMove(src, dst, err)
@@ -380,7 +396,13 @@ func (fs *SFTPFileSystem) Move(src string, dst string, config fs2.CreateDirector
 	}
 	var dirMode = fs.visibilityConvertor.DefaultForDir()
 	if config != nil {
-		dirMode = fs.visibilityConvertor.ForDir(config.DirVisibility())
+		cfg, err := filesystem.NewConfig(config)
+		if err != nil {
+			return filesystem.NewUnableToMove(src, dst, err)
+		}
+		if cfg.DirVisibility != nil {
+			dirMode = fs.visibilityConvertor.ForDir(*cfg.DirVisibility)
+		}
 	}
 	if err := client.SFTPClient().MkdirAll(filepath.Dir(dst)); err != nil {
 		return filesystem.NewUnableToMove(src, dst, err)
@@ -394,7 +416,7 @@ func (fs *SFTPFileSystem) Move(src string, dst string, config fs2.CreateDirector
 	return nil
 }
 
-func (fs *SFTPFileSystem) Copy(src string, dst string, config fs2.CreateFileConfig) error {
+func (fs *SFTPFileSystem) Copy(src string, dst string, config map[string]any) error {
 	client, err := fs.clientPool.Get()
 	if err != nil {
 		return filesystem.NewUnableToCopyFile(src, dst, err)
@@ -404,9 +426,19 @@ func (fs *SFTPFileSystem) Copy(src string, dst string, config fs2.CreateFileConf
 	var fileMode = fs.visibilityConvertor.DefaultForFile()
 	var writeFlag = os.O_CREATE | os.O_WRONLY
 	if config != nil {
-		dirMode = fs.visibilityConvertor.ForDir(config.DirVisibility())
-		fileMode = fs.visibilityConvertor.ForFile(config.FileVisibility())
-		writeFlag = config.WriteFlag()
+		cfg, err := filesystem.NewConfig(config)
+		if err != nil {
+			return filesystem.NewUnableToCopyFile(src, dst, err)
+		}
+		if cfg.DirVisibility != nil {
+			dirMode = fs.visibilityConvertor.ForDir(*cfg.DirVisibility)
+		}
+		if cfg.FileVisibility != nil {
+			fileMode = fs.visibilityConvertor.ForFile(*cfg.FileVisibility)
+		}
+		if cfg.FileWriteFlag != nil {
+			writeFlag = *cfg.FileWriteFlag
+		}
 	}
 	src = filepath.ToSlash(filepath.Clean(src))
 	dst = filepath.ToSlash(filepath.Clean(dst))

@@ -243,3 +243,27 @@ func NewUnableToReadDirectory(location string, err error) *UnableToReadDirectory
 func (err *UnableToReadDirectory) Unwrap() error {
 	return err.err
 }
+
+type UnknownFileSystemError struct {
+	fsName string
+	Throwable
+}
+
+func NewUnknownFileSystemError(fsName string) *UnknownFileSystemError {
+	return &UnknownFileSystemError{
+		fsName:    fsName,
+		Throwable: exception.New(fmt.Sprintf("unknown filesystem: %s", fsName)),
+	}
+}
+
+type InvalidPathError struct {
+	path string
+	Throwable
+}
+
+func NewInvalidPathError(path string) *InvalidPathError {
+	return &InvalidPathError{
+		path:      path,
+		Throwable: exception.New(fmt.Sprintf("invalid path: %s", path)),
+	}
+}

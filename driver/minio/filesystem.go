@@ -205,11 +205,11 @@ func (m *MinioFileSystem) Visibility(path string) (string, error) {
 	return resp.Metadata.Get("x-amz-acl"), nil
 }
 
-func (m *MinioFileSystem) Write(path string, content []byte, config fs.CreateFileConfig) error {
+func (m *MinioFileSystem) Write(path string, content []byte, config map[string]any) error {
 	return m.WriteStream(path, bytes.NewReader(content), config)
 }
 
-func (m *MinioFileSystem) WriteStream(path string, stream io.Reader, _ fs.CreateFileConfig) error {
+func (m *MinioFileSystem) WriteStream(path string, stream io.Reader, _ map[string]any) error {
 	path = filepath.ToSlash(path)
 	if strings.HasSuffix(path, "/") {
 		return filesystem.NewUnableToWriteFile(path, filesystem.ErrIsNotFile)
@@ -253,7 +253,7 @@ func (m *MinioFileSystem) DeleteDir(path string) error {
 	return nil
 }
 
-func (m *MinioFileSystem) CreateDir(path string, _ fs.CreateDirectoryConfig) error {
+func (m *MinioFileSystem) CreateDir(path string, _ map[string]any) error {
 	path = filepath.ToSlash(path)
 	if !strings.HasSuffix(path, "/") {
 		return filesystem.NewUnableToCreateDirectory(path, filesystem.ErrIsNotFile)
@@ -265,7 +265,7 @@ func (m *MinioFileSystem) CreateDir(path string, _ fs.CreateDirectoryConfig) err
 	return nil
 }
 
-func (m *MinioFileSystem) Move(src string, dst string, _ fs.CreateDirectoryConfig) error {
+func (m *MinioFileSystem) Move(src string, dst string, _ map[string]any) error {
 	src = filepath.ToSlash(src)
 	dst = filepath.ToSlash(dst)
 	if strings.HasSuffix(src, "/") {
@@ -291,7 +291,7 @@ func (m *MinioFileSystem) Move(src string, dst string, _ fs.CreateDirectoryConfi
 	return nil
 }
 
-func (m *MinioFileSystem) Copy(src string, dst string, _ fs.CreateFileConfig) error {
+func (m *MinioFileSystem) Copy(src string, dst string, _ map[string]any) error {
 	src = filepath.ToSlash(src)
 	dst = filepath.ToSlash(dst)
 	if strings.HasSuffix(src, "/") {

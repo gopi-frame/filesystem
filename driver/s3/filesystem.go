@@ -283,7 +283,7 @@ func (s *S3FileSystem) Visibility(path string) (string, error) {
 // If the file already exists, it will overwrite it.
 // If the file already exists and you want to append to it,
 // make sure the write flags returned by config.WriteFlag() contains os.O_APPEND
-func (s *S3FileSystem) Write(path string, content []byte, config fs2.CreateFileConfig) error {
+func (s *S3FileSystem) Write(path string, content []byte, config map[string]any) error {
 	return s.WriteStream(path, bytes.NewReader(content), config)
 }
 
@@ -299,7 +299,7 @@ func (s *S3FileSystem) Write(path string, content []byte, config fs2.CreateFileC
 //	if the object's storage class is [types.StorageClassExpressOnezone],
 //	it will use the s3.PutObjectInput.WriteOffsetBytes field to specify the offset to write to.
 //	Else, it will read the content of the original file first and then append the new content to it.
-func (s *S3FileSystem) WriteStream(path string, stream io.Reader, config fs2.CreateFileConfig) error {
+func (s *S3FileSystem) WriteStream(path string, stream io.Reader, config map[string]any) error {
 	path = filepath.ToSlash(path)
 	if strings.HasSuffix(path, "/") {
 		return filesystem.NewUnableToWriteFile(path, filesystem.ErrIsNotFile)
@@ -307,8 +307,19 @@ func (s *S3FileSystem) WriteStream(path string, stream io.Reader, config fs2.Cre
 	var fileMode = s.visibilityConvert.DefaultForFile()
 	var writeFlag int
 	if config != nil {
-		fileMode = config.FileVisibility()
-		writeFlag = config.WriteFlag()
+		cfg, err := filesystem.NewConfig(config)
+		if err != nil {
+			return filesystem.NewUnableToWriteFile(path, err)
+		}
+		if cfg.DirVisibility != nil {
+			fileMode = *cfg.DirVisibility
+		}
+		if cfg.FileVisibility != nil {
+			fileMode = *cfg.FileVisibility
+		}
+		if cfg.FileWriteFlag != nil {
+			writeFlag = *cfg.FileWriteFlag
+		}
 	}
 	var err error
 	var input = &s3.PutObjectInput{
@@ -414,7 +425,7 @@ func (s *S3FileSystem) DeleteDir(path string) error {
 
 // CreateDir creates a directory at the given path.
 // If the path does not end with a slash, it returns an error.
-func (s *S3FileSystem) CreateDir(path string, config fs2.CreateDirectoryConfig) error {
+func (s *S3FileSystem) CreateDir(path string, config map[string]any) error {
 	path = filepath.ToSlash(path)
 	if !strings.HasSuffix(path, "/") {
 		return filesystem.NewUnableToCreateDirectory(path, filesystem.ErrIsNotDirectory)
@@ -425,7 +436,13 @@ func (s *S3FileSystem) CreateDir(path string, config fs2.CreateDirectoryConfig) 
 	}
 	var dirMode = s.visibilityConvert.DefaultForDir()
 	if config != nil {
-		dirMode = config.DirVisibility()
+		cfg, err := filesystem.NewConfig(config)
+		if err != nil {
+			return filesystem.NewUnableToCreateDirectory(path, err)
+		}
+		if cfg.DirVisibility != nil {
+			dirMode = *cfg.DirVisibility
+		}
 	}
 	_, err := s.client.PutObject(context.Background(), &s3.PutObjectInput{
 		Bucket: aws.String(s.bucket),
@@ -440,7 +457,7 @@ func (s *S3FileSystem) CreateDir(path string, config fs2.CreateDirectoryConfig) 
 
 // Move moves the object at the given path to the given destination.
 // This operation only supports moving files.
-func (s *S3FileSystem) Move(src string, dst string, config fs2.CreateDirectoryConfig) error {
+func (s *S3FileSystem) Move(src string, dst string, config map[string]any) error {
 	if strings.HasSuffix(src, "/") {
 		return filesystem.NewUnableToMove(src, dst, filesystem.ErrIsNotFile)
 	}
@@ -449,7 +466,13 @@ func (s *S3FileSystem) Move(src string, dst string, config fs2.CreateDirectoryCo
 	}
 	var dirMode = s.visibilityConvert.DefaultForDir()
 	if config != nil {
-		dirMode = config.DirVisibility()
+		cfg, err := filesystem.NewConfig(config)
+		if err != nil {
+			return filesystem.NewUnableToMove(src, dst, err)
+		}
+		if cfg.DirVisibility != nil {
+			dirMode = *cfg.DirVisibility
+		}
 	}
 	_, err := s.client.CopyObject(context.Background(), &s3.CopyObjectInput{
 		Bucket:     aws.String(s.bucket),
@@ -472,7 +495,7 @@ func (s *S3FileSystem) Move(src string, dst string, config fs2.CreateDirectoryCo
 
 // Copy copies the object at the given path to the given destination.
 // If any one of the source and destination ends with a slash, it returns an error.
-func (s *S3FileSystem) Copy(src string, dst string, config fs2.CreateFileConfig) error {
+func (s *S3FileSystem) Copy(src string, dst string, config map[string]any) error {
 	src = filepath.ToSlash(src)
 	dst = filepath.ToSlash(dst)
 	if strings.HasSuffix(src, "/") || strings.HasSuffix(dst, "/") {
@@ -480,7 +503,13 @@ func (s *S3FileSystem) Copy(src string, dst string, config fs2.CreateFileConfig)
 	}
 	var dirMode = s.visibilityConvert.DefaultForDir()
 	if config != nil {
-		dirMode = config.DirVisibility()
+		cfg, err := filesystem.NewConfig(config)
+		if err != nil {
+			return filesystem.NewUnableToCopyFile(src, dst, err)
+		}
+		if cfg.DirVisibility != nil {
+			dirMode = *cfg.DirVisibility
+		}
 	}
 	_, err := s.client.CopyObject(context.Background(), &s3.CopyObjectInput{
 		Bucket:     aws.String(s.bucket),

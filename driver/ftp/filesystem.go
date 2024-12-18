@@ -297,13 +297,13 @@ func (f *FTPFileSystem) Visibility(path string) (string, error) {
 }
 
 // Write writes the content to the file.
-func (f *FTPFileSystem) Write(path string, content []byte, config fs.CreateFileConfig) error {
+func (f *FTPFileSystem) Write(path string, content []byte, config map[string]any) error {
 	return f.WriteStream(path, bytes.NewReader(content), config)
 }
 
 // WriteStream writes the content to the file.
 // If the file already exists, it will be overwritten unless the config.WriteFlag() is set to os.O_APPEND.
-func (f *FTPFileSystem) WriteStream(path string, content io.Reader, config fs.CreateFileConfig) error {
+func (f *FTPFileSystem) WriteStream(path string, content io.Reader, config map[string]any) error {
 	conn, err := f.connPool.Get()
 	if err != nil {
 		return filesystem.NewUnableToWriteFile(path, err)
@@ -313,9 +313,19 @@ func (f *FTPFileSystem) WriteStream(path string, content io.Reader, config fs.Cr
 	var fileMode = f.visibilityConvertor.DefaultForFile()
 	var writeFlag = os.O_CREATE | os.O_WRONLY | os.O_TRUNC
 	if config != nil {
-		dirMode = f.visibilityConvertor.ForDir(config.DirVisibility())
-		fileMode = f.visibilityConvertor.ForFile(config.FileVisibility())
-		writeFlag = config.WriteFlag()
+		cfg, err := filesystem.NewConfig(config)
+		if err != nil {
+			return filesystem.NewUnableToWriteFile(path, err)
+		}
+		if cfg.DirVisibility != nil {
+			dirMode = f.visibilityConvertor.ForDir(*cfg.DirVisibility)
+		}
+		if cfg.FileVisibility != nil {
+			fileMode = f.visibilityConvertor.ForFile(*cfg.FileVisibility)
+		}
+		if cfg.FileWriteFlag != nil {
+			writeFlag = *cfg.FileWriteFlag
+		}
 	}
 	entry, err := f.getEntry(conn, path)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -463,7 +473,7 @@ func (f *FTPFileSystem) DeleteDir(path string) error {
 }
 
 // CreateDir creates a directory.
-func (f *FTPFileSystem) CreateDir(path string, config fs.CreateDirectoryConfig) error {
+func (f *FTPFileSystem) CreateDir(path string, config map[string]any) error {
 	conn, err := f.connPool.Get()
 	if err != nil {
 		return filesystem.NewUnableToCreateDirectory(path, err)
@@ -475,7 +485,13 @@ func (f *FTPFileSystem) CreateDir(path string, config fs.CreateDirectoryConfig) 
 	}
 	dirMode := f.visibilityConvertor.DefaultForDir()
 	if config != nil {
-		dirMode = f.visibilityConvertor.ForDir(config.DirVisibility())
+		cfg, err := filesystem.NewConfig(config)
+		if err != nil {
+			return filesystem.NewUnableToCreateDirectory(path, err)
+		}
+		if cfg.DirVisibility != nil {
+			dirMode = f.visibilityConvertor.ForDir(*cfg.DirVisibility)
+		}
 	}
 	if err := f.mkdirAll(conn, path, dirMode); err != nil {
 		return filesystem.NewUnableToCreateDirectory(path, err)
@@ -485,7 +501,7 @@ func (f *FTPFileSystem) CreateDir(path string, config fs.CreateDirectoryConfig) 
 
 // Move moves a file or directory to a new location.
 // If the destination file or directory already exists, the operation fails.
-func (f *FTPFileSystem) Move(src string, dst string, config fs.CreateDirectoryConfig) error {
+func (f *FTPFileSystem) Move(src string, dst string, config map[string]any) error {
 	src = filepath.ToSlash(filepath.Clean(src))
 	dst = filepath.ToSlash(filepath.Clean(dst))
 	conn, err := f.connPool.Get()
@@ -503,7 +519,13 @@ func (f *FTPFileSystem) Move(src string, dst string, config fs.CreateDirectoryCo
 	}
 	dirMode := f.visibilityConvertor.DefaultForDir()
 	if config != nil {
-		dirMode = f.visibilityConvertor.ForDir(config.DirVisibility())
+		cfg, err := filesystem.NewConfig(config)
+		if err != nil {
+			return filesystem.NewUnableToMove(src, dst, err)
+		}
+		if cfg.DirVisibility != nil {
+			dirMode = f.visibilityConvertor.ForDir(*cfg.DirVisibility)
+		}
 	}
 	if err := f.mkdirAll(conn, filepath.ToSlash(filepath.Dir(dst)), dirMode); err != nil {
 		return filesystem.NewUnableToMove(src, dst, err)
@@ -522,7 +544,7 @@ func (f *FTPFileSystem) Move(src string, dst string, config fs.CreateDirectoryCo
 //	when the write flag is set to os.O_TRUNC, the original destination will be deleted first,
 //	if any error occurs after the file is deleted, the destination will be destroyed.
 //	so it is recommended to not set the write flag to os.O_TRUNC.
-func (f *FTPFileSystem) Copy(src string, dst string, config fs.CreateFileConfig) error {
+func (f *FTPFileSystem) Copy(src string, dst string, config map[string]any) error {
 	src = filepath.ToSlash(filepath.Clean(src))
 	dst = filepath.ToSlash(filepath.Clean(dst))
 	conn, err := f.connPool.Get()
@@ -541,9 +563,19 @@ func (f *FTPFileSystem) Copy(src string, dst string, config fs.CreateFileConfig)
 	fileMode := f.visibilityConvertor.DefaultForFile()
 	writeFlag := os.O_WRONLY | os.O_CREATE
 	if config != nil {
-		dirMode = f.visibilityConvertor.ForDir(config.DirVisibility())
-		fileMode = f.visibilityConvertor.ForFile(config.FileVisibility())
-		writeFlag = config.WriteFlag()
+		cfg, err := filesystem.NewConfig(config)
+		if err != nil {
+			return filesystem.NewUnableToCopyFile(src, dst, err)
+		}
+		if cfg.DirVisibility != nil {
+			dirMode = f.visibilityConvertor.ForDir(*cfg.DirVisibility)
+		}
+		if cfg.FileVisibility != nil {
+			fileMode = f.visibilityConvertor.ForFile(*cfg.FileVisibility)
+		}
+		if cfg.FileWriteFlag != nil {
+			writeFlag = *cfg.FileWriteFlag
+		}
 	}
 	dstEntry, err := f.getEntry(conn, dst)
 	if err == nil && dstEntry != nil {

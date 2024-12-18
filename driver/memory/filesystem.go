@@ -170,11 +170,11 @@ func (f *MemoryFileSystem) Visibility(location string) (string, error) {
 	return entry.visibility, nil
 }
 
-func (f *MemoryFileSystem) Write(location string, content []byte, config fs.CreateFileConfig) error {
+func (f *MemoryFileSystem) Write(location string, content []byte, config map[string]any) error {
 	return f.WriteStream(location, bytes.NewReader(content), config)
 }
 
-func (f *MemoryFileSystem) WriteStream(location string, stream io.Reader, config fs.CreateFileConfig) error {
+func (f *MemoryFileSystem) WriteStream(location string, stream io.Reader, config map[string]any) error {
 	path := f.preparePath(location)
 	if path == "." || path == "/" || path == "./" || path == "" {
 		return nil
@@ -184,9 +184,19 @@ func (f *MemoryFileSystem) WriteStream(location string, stream io.Reader, config
 	var fileVisibility = f.visibility
 	var fileFlag = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
 	if config != nil {
-		dirVisibility = config.DirVisibility()
-		fileVisibility = config.FileVisibility()
-		fileFlag = config.WriteFlag()
+		cfg, err := filesystem.NewConfig(config)
+		if err != nil {
+			return err
+		}
+		if cfg.DirVisibility != nil {
+			dirVisibility = *cfg.DirVisibility
+		}
+		if cfg.FileVisibility != nil {
+			fileVisibility = *cfg.FileVisibility
+		}
+		if cfg.FileWriteFlag != nil {
+			fileFlag = *cfg.FileWriteFlag
+		}
 	}
 	var dirEntry *dirEntry
 	if len(parts) == 1 {
@@ -243,10 +253,16 @@ func (f *MemoryFileSystem) DeleteDir(location string) error {
 	return f.deleteAll(path, false)
 }
 
-func (f *MemoryFileSystem) CreateDir(path string, config fs.CreateDirectoryConfig) error {
+func (f *MemoryFileSystem) CreateDir(path string, config map[string]any) error {
 	var visibility = f.visibility
 	if config != nil {
-		visibility = config.DirVisibility()
+		cfg, err := filesystem.NewConfig(config)
+		if err != nil {
+			return err
+		}
+		if cfg.DirVisibility != nil {
+			visibility = *cfg.DirVisibility
+		}
 	}
 	if _, err := f.mkdirAll(path, visibility); err != nil {
 		return err
@@ -254,11 +270,7 @@ func (f *MemoryFileSystem) CreateDir(path string, config fs.CreateDirectoryConfi
 	return nil
 }
 
-func (f *MemoryFileSystem) Move(src string, dst string, config fs.CreateDirectoryConfig) error {
-	var dirVisibility = f.visibility
-	if config != nil {
-		dirVisibility = config.DirVisibility()
-	}
+func (f *MemoryFileSystem) Move(src string, dst string, config map[string]any) error {
 	srcEntry := f.searchEntry(src)
 	if srcEntry == nil {
 		return filesystem.NewUnableToMove(src, dst, os.ErrNotExist)
@@ -266,6 +278,16 @@ func (f *MemoryFileSystem) Move(src string, dst string, config fs.CreateDirector
 	dstEntry := f.searchEntry(dst)
 	if dstEntry != nil {
 		return filesystem.NewUnableToMove(dst, src, os.ErrExist)
+	}
+	var dirVisibility = f.visibility
+	if config != nil {
+		cfg, err := filesystem.NewConfig(config)
+		if err != nil {
+			return err
+		}
+		if cfg.DirVisibility != nil {
+			dirVisibility = *cfg.DirVisibility
+		}
 	}
 	var err error
 	var dstDir *dirEntry
@@ -291,14 +313,24 @@ func (f *MemoryFileSystem) Move(src string, dst string, config fs.CreateDirector
 	return nil
 }
 
-func (f *MemoryFileSystem) Copy(src string, dst string, config fs.CreateFileConfig) error {
+func (f *MemoryFileSystem) Copy(src string, dst string, config map[string]any) error {
 	var dirVisibility = f.visibility
 	var fileVisibility = f.visibility
 	var fileFlag int
 	if config != nil {
-		dirVisibility = config.DirVisibility()
-		fileVisibility = config.FileVisibility()
-		fileFlag = config.WriteFlag()
+		cfg, err := filesystem.NewConfig(config)
+		if err != nil {
+			return err
+		}
+		if cfg.DirVisibility != nil {
+			dirVisibility = *cfg.DirVisibility
+		}
+		if cfg.FileVisibility != nil {
+			fileVisibility = *cfg.FileVisibility
+		}
+		if cfg.FileWriteFlag != nil {
+			fileFlag = *cfg.FileWriteFlag
+		}
 	}
 	srcEntry := f.searchEntry(src)
 	if srcEntry == nil {

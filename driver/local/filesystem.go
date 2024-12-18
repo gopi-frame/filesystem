@@ -175,11 +175,11 @@ func (f *LocalFileSystem) Visibility(path string) (string, error) {
 	}
 }
 
-func (f *LocalFileSystem) Write(path string, content []byte, config fs.CreateFileConfig) error {
+func (f *LocalFileSystem) Write(path string, content []byte, config map[string]any) error {
 	return f.WriteStream(path, bytes.NewReader(content), config)
 }
 
-func (f *LocalFileSystem) WriteStream(path string, stream io.Reader, config fs.CreateFileConfig) error {
+func (f *LocalFileSystem) WriteStream(path string, stream io.Reader, config map[string]any) error {
 	if err := f.createRoot(); err != nil {
 		return err
 	}
@@ -188,15 +188,19 @@ func (f *LocalFileSystem) WriteStream(path string, stream io.Reader, config fs.C
 	var fileMode = f.visibilityConvertor.DefaultForFile()
 	var fileFlag = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
 	if config != nil {
-		dirVisibility := config.DirVisibility()
-		if dirVisibility != "" {
-			dirMode = f.visibilityConvertor.ForDir(dirVisibility)
+		cfg, err := filesystem.NewConfig(config)
+		if err != nil {
+			return err
 		}
-		fileVisibility := config.FileVisibility()
-		if fileVisibility != "" {
-			fileMode = f.visibilityConvertor.ForFile(fileVisibility)
+		if cfg.DirVisibility != nil {
+			dirMode = f.visibilityConvertor.ForDir(*cfg.DirVisibility)
 		}
-		fileFlag = config.WriteFlag()
+		if cfg.FileVisibility != nil {
+			fileMode = f.visibilityConvertor.ForFile(*cfg.FileVisibility)
+		}
+		if cfg.FileWriteFlag != nil {
+			fileFlag = *cfg.FileWriteFlag
+		}
 	}
 	if err := os.MkdirAll(filepath.Dir(fp), dirMode); err != nil {
 		return filesystem.NewUnableToCreateDirectory(filepath.Dir(fp), err)
@@ -246,12 +250,15 @@ func (f *LocalFileSystem) DeleteDir(path string) error {
 	return nil
 }
 
-func (f *LocalFileSystem) CreateDir(path string, config fs.CreateDirectoryConfig) error {
+func (f *LocalFileSystem) CreateDir(path string, config map[string]any) error {
 	var mode = f.visibilityConvertor.DefaultForDir()
 	if config != nil {
-		dirVisibility := config.DirVisibility()
-		if dirVisibility != "" {
-			mode = f.visibilityConvertor.ForDir(dirVisibility)
+		cfg, err := filesystem.NewConfig(config)
+		if err != nil {
+			return err
+		}
+		if cfg.DirVisibility != nil {
+			mode = f.visibilityConvertor.ForDir(*cfg.DirVisibility)
 		}
 	}
 	exists, _ := f.DirExists(path)
@@ -264,7 +271,7 @@ func (f *LocalFileSystem) CreateDir(path string, config fs.CreateDirectoryConfig
 	return nil
 }
 
-func (f *LocalFileSystem) Move(src string, dst string, config fs.CreateDirectoryConfig) error {
+func (f *LocalFileSystem) Move(src string, dst string, config map[string]any) error {
 	if err := f.createRoot(); err != nil {
 		return filesystem.NewUnableToCreateDirectory(f.root, err)
 	}
@@ -272,9 +279,12 @@ func (f *LocalFileSystem) Move(src string, dst string, config fs.CreateDirectory
 	dstPath := filepath.Join(f.root, dst)
 	var mode = f.visibilityConvertor.DefaultForDir()
 	if config != nil {
-		dirVisibility := config.DirVisibility()
-		if dirVisibility != "" {
-			mode = f.visibilityConvertor.ForDir(dirVisibility)
+		cfg, err := filesystem.NewConfig(config)
+		if err != nil {
+			return err
+		}
+		if cfg.DirVisibility != nil {
+			mode = f.visibilityConvertor.ForDir(*cfg.DirVisibility)
 		}
 	}
 	if err := os.MkdirAll(filepath.Dir(dstPath), mode); err != nil {
@@ -286,7 +296,7 @@ func (f *LocalFileSystem) Move(src string, dst string, config fs.CreateDirectory
 	return nil
 }
 
-func (f *LocalFileSystem) Copy(src string, dst string, config fs.CreateFileConfig) error {
+func (f *LocalFileSystem) Copy(src string, dst string, config map[string]any) error {
 	if err := f.createRoot(); err != nil {
 		return filesystem.NewUnableToCreateDirectory(f.root, err)
 	}
