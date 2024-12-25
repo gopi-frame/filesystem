@@ -24,6 +24,18 @@ func NewDuplicateDriver(name string) *DuplicateDriver {
 	}
 }
 
+type UnknownDriver struct {
+	name string
+	Throwable
+}
+
+func NewUnknownDriverError(name string) *UnknownDriver {
+	return &UnknownDriver{
+		name:      name,
+		Throwable: exception.New(fmt.Sprintf("Unknown driver: %s, forget to import?", name)),
+	}
+}
+
 type UnableToCheckExistence struct {
 	location string
 	err      error

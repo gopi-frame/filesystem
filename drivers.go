@@ -23,5 +23,11 @@ func Drivers() []string {
 }
 
 func Open(driverName string, options map[string]any) (filesystem.FileSystem, error) {
-	return nil, nil
+	drivers.RLock()
+	defer drivers.RUnlock()
+	driver, ok := drivers.Get(driverName)
+	if !ok {
+		return nil, NewUnknownDriverError(driverName)
+	}
+	return driver.Open(options)
 }
