@@ -16,7 +16,6 @@ import (
 
 	fs "github.com/gopi-frame/contract/filesystem"
 	"github.com/gopi-frame/filesystem"
-	"github.com/minio/minio-go/v7"
 )
 
 type MinioFileSystem struct {
@@ -111,7 +110,7 @@ func (m *MinioFileSystem) ReadStream(path string) (io.ReadCloser, error) {
 func (m *MinioFileSystem) ReadDir(path string) ([]os.DirEntry, error) {
 	path = filepath.ToSlash(path)
 	if !strings.HasSuffix(path, "/") {
-		return nil, filesystem.NewUnableToCheckExistence(path, filesystem.ErrIsNotDirectory)
+		return nil, filesystem.NewUnableToReadDirectory(path, filesystem.ErrIsNotDirectory)
 	}
 	objects := m.client.ListObjects(context.Background(), m.bucket, minio.ListObjectsOptions{
 		Prefix: path,
