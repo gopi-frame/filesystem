@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/minio/minio-go/v7"
+
 	"github.com/gopi-frame/exception"
 
 	fs "github.com/gopi-frame/contract/filesystem"
